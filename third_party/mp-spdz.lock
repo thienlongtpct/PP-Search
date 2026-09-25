@@ -1,0 +1,18 @@
+# Pinned MP-SPDZ backend used by the two-party computation parties.
+# scripts/build_mpspdz.sh checks out exactly these revisions and refuses to
+# build if any recursive submodule differs.
+repository https://github.com/data61/MP-SPDZ.git
+commit e0ee04674ac7ff1fbd4377508fdd349f95dbb7f3
+# upstream tag nearest to the commit: v0.4.3-8-ge0ee0467 (2026-09-21)
+submodule Programs/Circuits 1603ed6aa12348c2ef15ed8395b9b96e4c558b7f
+submodule deps/SimpleOT 44aac605389d6478a75b172a9cf6e76e3c964ce7
+submodule deps/SimplestOT_C 7ef7666909e493a18c99efe56f97cc4d13723005
+submodule deps/libOTe 1264725c3f08c2acaed70b2f3f67a68f38c53012
+submodule deps/libOTe/cryptoTools e9e03f87d83e8347854aafb352c1ef1364e5c856
+submodule deps/libOTe/cryptoTools/thirdparty/simde 0ba20859e9f557cee161d2cab2728b56dca7ec38
+submodule deps/libOTe/cryptoTools/thirdparty/simde/test/munit da8f73412998e4f1adf1100dc187533a51af77fd
+submodule deps/libOTe/cryptoTools/thirdparty/sse2neon 29716df957401e9c357348e9b73c95a38cdcd34f
+submodule deps/simde 0ba20859e9f557cee161d2cab2728b56dca7ec38
+submodule deps/simde/test/munit da8f73412998e4f1adf1100dc187533a51af77fd
+submodule deps/sse2neon ddca67108e3e96a288e9aa7e31bfacca2309f624
+patch patches/mp-spdz-0001-clang21-dependent-template.patch

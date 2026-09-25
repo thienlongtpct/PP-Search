@@ -1,0 +1,6 @@
+/build/
+/build-*/
+/third_party/mp-spdz/
+/benchmarks/results/*/work/
+.DS_Store
+__pycache__/
