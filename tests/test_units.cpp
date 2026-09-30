@@ -117,13 +117,15 @@ void test_wire() {
 
     wire::SessionOpen open;
     open.horizon = 100;
-    open.mode = wire::Mode::kDirectArgmin;
     open.timeout_ms = 1000;
     open.requester = "alice";
     open.station_ids = {1, 5, 9};
     const wire::SessionOpen round_trip = wire::decode_session_open(wire::encode(open));
     CHECK(round_trip.station_ids == open.station_ids && round_trip.requester == "alice");
-    CHECK(round_trip.mode == wire::Mode::kDirectArgmin);
+    CHECK(round_trip.mode == wire::Mode::kBinaryThenExact);
+    open.mode = static_cast<wire::Mode>(2);  // the removed direct-argmin mode
+    expect_throw<ProtocolError>([&] { wire::decode_session_open(wire::encode(open)); }, "mode");
+    open.mode = wire::Mode::kBinaryThenExact;
     open.station_ids = {1, 5, 5};
     try {
         wire::decode_session_open(wire::encode(open));
@@ -153,23 +155,21 @@ void test_cost_plan() {
     CHECK(binary_search_rounds(1) == 2);
     CHECK(binary_search_rounds(1'000'000) == 20);
     CHECK(binary_search_rounds(0xffffffffu) == 33);
-    for (const std::size_t n : {1u, 2u, 7u, 64u}) {
-        const OperationCounts argmin = plan_search(n, 1000, SearchMode::kDirectArgmin);
-        CHECK(argmin.multiplications == 3 * n + n + 5 * (n - 1) + 1);
-        CHECK(argmin.comparisons == 2 * n + (n - 1));
-        CHECK(argmin.halvings == 0);
-        const std::uint64_t rounds = binary_search_rounds(1000);
-        const OperationCounts binary = plan_search(n, 1000, SearchMode::kBinaryThenExact);
-        CHECK(binary.multiplications ==
-              argmin.multiplications + rounds * (1 + n + (n - 1) + 2 + 2) + 1 + n);
-        CHECK(binary.comparisons == argmin.comparisons + rounds * (n + 1) + n);
-        CHECK(binary.halvings == rounds);
+    const std::uint64_t rounds = binary_search_rounds(1000);
+    for (const std::uint64_t n : {1u, 2u, 7u, 64u}) {
+        const OperationCounts plan = plan_search(n, 1000);
+        // inputs + eligibility, binary search, final bound, tournament + mask
+        CHECK(plan.multiplications == 3 * n + n + rounds * (1 + n + (n - 1) + 2 + 2) + 1 + n +
+                                          5 * (n - 1) + 1);
+        CHECK(plan.comparisons == 2 * n + rounds * (n + 1) + n + (n - 1));
+        CHECK(plan.halvings == rounds);
+        CHECK(plan.reveal_steps == 1);
     }
-    CHECK(plan_search(0, 10, SearchMode::kBinaryThenExact).multiplications == 0);
+    CHECK(plan_search(0, 10).multiplications == 0);
 }
 
 PlainSelection run_reference(std::int32_t ax, std::int32_t ay, std::vector<PlainStation> stations,
-                             std::uint32_t horizon, SearchMode mode) {
+                             std::uint32_t horizon) {
     std::sort(stations.begin(), stations.end(),
               [](const PlainStation& a, const PlainStation& b) { return a.id < b.id; });
     testing::PlaintextReferenceOps ops;
@@ -179,36 +179,48 @@ PlainSelection run_reference(std::int32_t ax, std::int32_t ay, std::vector<Plain
                           {encode_radius(s.support_radius)}});
     }
     const AuthorizedSelection result = nearest_eligible_station(
-        ops, {{encode_coordinate(ax)}, {encode_coordinate(ay)}}, shares, horizon, mode);
+        ops, {{encode_coordinate(ax)}, {encode_coordinate(ay)}}, shares, horizon);
+
+    // Obliviousness: the same (N, D) with all-zero inputs runs exactly the
+    // same sequence of interactive operations with the same batch sizes.
+    testing::PlaintextReferenceOps zero_ops;
+    std::vector<StationShares> zeros(shares.size());
+    for (std::size_t i = 0; i < zeros.size(); ++i) {
+        zeros[i].id = shares[i].id;
+    }
+    nearest_eligible_station(zero_ops, RequesterShares{}, zeros, horizon);
+    if (ops.trace() != zero_ops.trace()) {
+        throw std::runtime_error("search control flow depends on secret inputs");
+    }
     return {result.match, result.station_id};
 }
 
-void check_both_modes(std::int32_t ax, std::int32_t ay, const std::vector<PlainStation>& stations,
-                      std::uint32_t horizon) {
+void check_search(std::int32_t ax, std::int32_t ay, const std::vector<PlainStation>& stations,
+                  std::uint32_t horizon) {
     const PlainSelection expected = plain_nearest_eligible(ax, ay, stations, horizon);
-    for (const SearchMode mode : {SearchMode::kBinaryThenExact, SearchMode::kDirectArgmin}) {
-        const PlainSelection actual = run_reference(ax, ay, stations, horizon, mode);
-        if (!(actual == expected)) {
-            throw std::runtime_error("search logic disagrees with the plaintext oracle");
-        }
+    if (!(run_reference(ax, ay, stations, horizon) == expected)) {
+        throw std::runtime_error("search logic disagrees with the plaintext oracle");
     }
 }
 
 void test_search_logic() {
-    check_both_modes(0, 0, {{10, 2, 0, 10}, {20, 1, 1, 10}}, 100);
-    check_both_modes(0, 0, {{1, 100, 0, 100}}, 100);              // exactly at D
-    check_both_modes(0, 0, {{1, 101, 0, 1000}}, 100);             // D + 1
-    check_both_modes(0, 0, {{1, 1, 0, 0}, {2, 5, 0, 10}}, 100);   // closer but radius too small
-    check_both_modes(0, 0, {{9, 3, 4, 5}, {4, -3, -4, 5}}, 10);   // tie -> smaller ID
-    check_both_modes(0, 0, {{4, -3, -4, 5}, {9, 3, 4, 5}}, 10);   // reversed insertion order
-    check_both_modes(0, 0, {}, 10);
-    check_both_modes(0, 0, {{1, 5, 5, 1}, {2, 6, 6, 2}}, 100);    // all ineligible
-    check_both_modes(7, 7, {{3, 7, 7, 0}}, 0);                    // zero distance, zero radius
-    check_both_modes(kCoordinateMin, kCoordinateMin,
+    check_search(0, 0, {{10, 2, 0, 10}, {20, 1, 1, 10}}, 100);
+    check_search(0, 0, {{1, 100, 0, 100}}, 100);              // exactly at D
+    check_search(0, 0, {{1, 101, 0, 1000}}, 100);             // D + 1
+    check_search(0, 0, {{1, 1, 0, 0}, {2, 5, 0, 10}}, 100);   // closer but radius too small
+    check_search(0, 0, {{9, 3, 4, 5}, {4, -3, -4, 5}}, 10);   // tie -> smaller ID
+    check_search(0, 0, {{4, -3, -4, 5}, {9, 3, 4, 5}}, 10);   // reversed insertion order
+    check_search(0, 0, {}, 10);
+    check_search(0, 0, {{1, 5, 5, 1}, {2, 6, 6, 2}}, 100);    // all ineligible
+    check_search(7, 7, {{3, 7, 7, 0}}, 0);                    // zero distance, zero radius
+    check_search(7, 7, {{8, 7, 7, 0}, {3, 7, 7, 0}, {5, 7, 7, 0}}, 0);  // D = 0, three-way tie
+    check_search(0, 0, {{6, 0, 10, 10}, {2, 10, 0, 10}, {4, -10, 0, 10}}, 10);  // ties at D^2
+    check_search(0, 0, {{6, 0, 3, 9}, {2, 3, 0, 9}, {4, 0, 1, 0}, {1, 5, 5, 9}}, 1000);  // tie behind a closer ineligible station
+    check_search(kCoordinateMin, kCoordinateMin,
                      {{1, static_cast<std::int32_t>(kCoordinateMax), static_cast<std::int32_t>(kCoordinateMax),
                        static_cast<std::uint32_t>(kRadiusMax)}},
                      0xffffffffu);                                 // extreme: q ~ 2^65 > D^2
-    check_both_modes(kCoordinateMin, 0,
+    check_search(kCoordinateMin, 0,
                      {{1, static_cast<std::int32_t>(kCoordinateMin + 0xfffffffeLL), 0,
                        static_cast<std::uint32_t>(kRadiusMax)}},
                      0xffffffffu);                                 // largest in-range distance
@@ -228,7 +240,23 @@ void test_search_logic() {
             stations.push_back({ids[i], coordinate(), coordinate(),
                                 static_cast<std::uint32_t>(random() % 40)});
         }
-        check_both_modes(coordinate(), coordinate(), stations, horizon);
+        check_search(coordinate(), coordinate(), stations, horizon);
+    }
+
+    // Wide coordinates and horizons: many rounds, near-ties and exact ties.
+    for (int trial = 0; trial < 1000; ++trial) {
+        const std::int32_t spread = trial % 2 == 0 ? 2'000'000 : 64;
+        const auto coordinate = [&] {
+            return static_cast<std::int32_t>(random() % (2 * spread + 1)) - spread;
+        };
+        const std::uint32_t horizon = static_cast<std::uint32_t>(random() % (4u * spread));
+        std::vector<PlainStation> stations;
+        const std::size_t count = random() % 20;
+        for (std::size_t i = 0; i < count; ++i) {
+            stations.push_back({i * 7 + 2, coordinate(), coordinate(),
+                                static_cast<std::uint32_t>(random() % (4u * spread))});
+        }
+        check_search(coordinate(), coordinate(), stations, horizon);
     }
 }
 

@@ -54,6 +54,7 @@ struct BackendStats {
     PhaseCost connect;       // TLS setup of the MP-SPDZ player (once per process)
     PhaseCost offline;       // base OTs + Beaver triple generation
     PhaseCost online;        // everything after inputs are loaded
+    OperationCounts operations;  // executed online operations
     std::uint64_t triples_requested = 0;
     std::uint64_t triples_consumed = 0;
     std::uint64_t triples_remaining = 0;
@@ -94,8 +95,10 @@ public:
 #ifdef PPS_TEST_HARNESS
     // Compiled only into the dedicated preprocessing test harness
     // (tests/test_preprocessing.cpp), never into pp_party: opens stored
-    // triples to both parties so that c = a * b can be checked.
+    // triples to both parties so that c = a * b can be checked, and opens
+    // arbitrary values.
     std::vector<std::array<Word, 3>> open_triples_for_test_harness(std::uint64_t count);
+    std::vector<Word> open_for_test_harness(std::span<const LocalShare> values);
 #endif
 
 private:

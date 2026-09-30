@@ -93,10 +93,6 @@ struct Session {
     std::optional<OperationCounts> plan;
 };
 
-std::string mode_name(wire::Mode mode) {
-    return mode == wire::Mode::kDirectArgmin ? "argmin" : "binary";
-}
-
 std::string counters_json(const TransportCounters& counters) {
     return JsonObject()
         .add("bytes_sent", counters.bytes_sent)
@@ -407,8 +403,7 @@ private:
         }
         session.peer_traffic_start = peer_->counters();
         log_session(session, "opened: " + std::to_string(session.stations.size()) +
-                                 " stations, horizon " + std::to_string(session.open.horizon) +
-                                 ", mode " + mode_name(session.open.mode));
+                                 " stations, horizon " + std::to_string(session.open.horizon));
         return true;
     }
 
@@ -591,8 +586,9 @@ private:
         if (count == 0) {
             return {};  // public: an empty station set has no match
         }
-        const OperationCounts plan =
-            plan_search(count, session.open.horizon, session.open.mode);
+        // The search is oblivious, so its exact triple count is a function
+        // of the public (N, D) alone and is generated before the online phase.
+        const OperationCounts plan = plan_search(count, session.open.horizon);
         session.plan = plan;
         const std::uint64_t triples =
             plan.multiplications - std::min(options_.test_triple_shortfall, plan.multiplications);
@@ -610,10 +606,12 @@ private:
             backend.start_session();
             backend.generate_triples(triples);
             backend.begin_online();
-            const AuthorizedSelection selection = nearest_eligible_station(
-                backend, requester, stations, session.open.horizon, session.open.mode);
+            const AuthorizedSelection selection =
+                nearest_eligible_station(backend, requester, stations, session.open.horizon);
             session.backend = backend.finish();
-            if (session.backend->triples_remaining != 0) {
+            if (session.backend->triples_remaining != 0 ||
+                session.backend->triples_consumed != session.backend->triples_requested ||
+                session.backend->operations.multiplications != plan.multiplications) {
                 throw std::logic_error("triple plan mismatch");
             }
             return selection;
@@ -712,7 +710,6 @@ private:
             .add("status", status)
             .add("stations", static_cast<std::uint64_t>(session.stations.size()))
             .add("horizon", std::uint64_t{session.open.horizon})
-            .add("mode", mode_name(session.open.mode))
             .add("input_phase_s", session.input_seconds)
             .add("output_phase_s", session.output_seconds)
             .add("output_delivered", session.output_delivered);
@@ -722,19 +719,23 @@ private:
                 json.add("selected_station", selection->station_id);
             }
         }
+        const auto counts_json = [](const OperationCounts& ops) {
+            return JsonObject()
+                .add("multiplications", ops.multiplications)
+                .add("comparisons", ops.comparisons)
+                .add("halvings", ops.halvings)
+                .add("multiply_steps", ops.multiply_steps)
+                .add("compare_steps", ops.compare_steps)
+                .add("halve_steps", ops.halve_steps)
+                .add("reveal_steps", ops.reveal_steps)
+                .str();
+        };
         if (session.plan) {
-            json.add_raw("plan", JsonObject()
-                                     .add("multiplications", session.plan->multiplications)
-                                     .add("comparisons", session.plan->comparisons)
-                                     .add("halvings", session.plan->halvings)
-                                     .add("multiply_steps", session.plan->multiply_steps)
-                                     .add("compare_steps", session.plan->compare_steps)
-                                     .add("halve_steps", session.plan->halve_steps)
-                                     .add("reveal_steps", session.plan->reveal_steps)
-                                     .str());
+            json.add_raw("plan", counts_json(*session.plan));
         }
         if (session.backend) {
             const BackendStats& backend = *session.backend;
+            json.add_raw("operations", counts_json(backend.operations));
             const auto phase = [](const PhaseCost& cost) {
                 return JsonObject()
                     .add("seconds", cost.seconds)

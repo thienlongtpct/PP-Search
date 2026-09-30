@@ -246,6 +246,8 @@ std::vector<LocalShare> MpSpdzParty::multiply(std::span<const LocalShare> x,
     for (std::size_t i = 0; i < x.size(); ++i) {
         result[i] = from_backend(beaver.finalize_mul());
     }
+    impl_->stats.operations.multiplications += x.size();
+    ++impl_->stats.operations.multiply_steps;
     return result;
 }
 
@@ -255,6 +257,8 @@ std::vector<LocalShare> MpSpdzParty::less_equal(std::span<const LocalShare> x,
     if (x.empty()) {
         return {};
     }
+    impl_->stats.operations.comparisons += x.size();
+    ++impl_->stats.operations.compare_steps;
     return impl_->run_elementwise("leq", {x, y}, party_id_);
 }
 
@@ -262,6 +266,8 @@ std::vector<LocalShare> MpSpdzParty::halve(std::span<const LocalShare> x) {
     if (x.empty()) {
         return {};
     }
+    impl_->stats.operations.halvings += x.size();
+    ++impl_->stats.operations.halve_steps;
     return impl_->run_elementwise("half", {x}, party_id_);
 }
 
@@ -277,6 +283,7 @@ AuthorizedSelection MpSpdzParty::reveal_selection(const LocalShare& match,
     if (opened_match > 1 || (opened_id >> 64) != 0 || (opened_match == 0 && opened_id != 0)) {
         throw std::runtime_error("authorized output is outside its domain");
     }
+    ++impl_->stats.operations.reveal_steps;
     return {opened_match == 1, static_cast<std::uint64_t>(opened_id)};
 }
 
@@ -317,6 +324,20 @@ std::vector<std::array<Word, 3>> MpSpdzParty::open_triples_for_test_harness(std:
         for (Word& value : triple) {
             value = to_word(mc.finalize_open());
         }
+    }
+    return opened;
+}
+
+std::vector<Word> MpSpdzParty::open_for_test_harness(std::span<const LocalShare> values) {
+    auto& mc = impl_->mac_check;
+    mc.init_open(impl_->player);
+    for (const LocalShare& value : values) {
+        mc.prepare_open(to_backend(value));
+    }
+    mc.exchange(impl_->player);
+    std::vector<Word> opened(values.size());
+    for (Word& value : opened) {
+        value = to_word(mc.finalize_open());
     }
     return opened;
 }

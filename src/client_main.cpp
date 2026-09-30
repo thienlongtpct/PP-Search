@@ -2,7 +2,7 @@
 //
 //   pp_client new-session
 //   pp_client coordinator --pki DIR --party0 H:P --party1 H:P --session HEX
-//             --horizon D --mode binary|argmin --requester NAME
+//             --horizon D --requester NAME
 //             (--stations ID,ID,... | --stations-file FILE) [--timeout-ms MS]
 //             [--result-timeout-ms MS]
 //   pp_client requester --pki DIR --party0 H:P --party1 H:P --session HEX
@@ -403,8 +403,8 @@ std::vector<std::uint64_t> parse_id_list(const std::string& text) {
 }
 
 int run_coordinator(const Arguments& arguments) {
-    arguments.allow_only({"pki", "party0", "party1", "session", "timeout-ms", "horizon", "mode",
-                          "requester", "stations", "stations-file", "result-timeout-ms",
+    arguments.allow_only({"pki", "party0", "party1", "session", "timeout-ms", "horizon", "requester",
+                          "stations", "stations-file", "result-timeout-ms",
                           "test-unchecked-station-list"});
     const Common target = common(arguments, 30000);
     wire::SessionOpen open;
@@ -413,11 +413,6 @@ int run_coordinator(const Arguments& arguments) {
         throw std::invalid_argument("horizon must fit in 32 bits");
     }
     open.horizon = static_cast<std::uint32_t>(horizon);
-    const std::string mode = arguments.get("mode", "binary");
-    if (mode != "binary" && mode != "argmin") {
-        throw std::invalid_argument("--mode must be binary or argmin");
-    }
-    open.mode = mode == "binary" ? wire::Mode::kBinaryThenExact : wire::Mode::kDirectArgmin;
     open.timeout_ms = static_cast<std::uint32_t>(arguments.get_uint("timeout-ms", 30000));
     open.requester = arguments.get("requester");
     if (arguments.has("stations-file")) {

@@ -14,15 +14,14 @@
 #include <iostream>
 #include <set>
 #include <string>
+#include <utility>
 
 namespace {
 
 using namespace pps;
 
-// Opens a bit b and a value v < 2^64 through the authorised reveal path.
-AuthorizedSelection open_pair(MpSpdzParty& party, LocalShare bit, LocalShare value) {
-    const std::vector<LocalShare> masked = party.multiply(std::span(&bit, 1), std::span(&value, 1));
-    return party.reveal_selection(bit, masked.front());
+Word open_value(MpSpdzParty& party, LocalShare value) {
+    return party.open_for_test_harness(std::span(&value, 1)).front();
 }
 
 void run(int party_id, int port_base) {
@@ -42,8 +41,8 @@ void run(int party_id, int port_base) {
 
     // 2. Beaver multiplication consumes exactly one triple per product.
     const LocalShare one = party.constant(1);
-    const AuthorizedSelection product = open_pair(party, one, party.constant(6 * 7));
-    CHECK(product.match && product.station_id == 42);
+    const LocalShare six = party.constant(6), seven = party.constant(7);
+    CHECK(open_value(party, party.multiply(std::span(&six, 1), std::span(&seven, 1)).front()) == 42);
     CHECK(party.triples_remaining() == 31);
     std::vector<LocalShare> xs(31, party.constant(3)), ys(31, party.constant(5));
     const std::vector<LocalShare> products = party.multiply(xs, ys);
@@ -75,17 +74,31 @@ void run(int party_id, int port_base) {
     const std::vector<LocalShare> right{party.constant(0), party.constant(top - 1),
                                         party.constant(top), party.constant(top), party.constant(0)};
     const std::vector<LocalShare> bits = party.less_equal(left, right);
-    const bool expected[] = {true, false, true, true, false};
-    for (std::size_t i = 0; i < bits.size(); ++i) {
-        const AuthorizedSelection opened_bit = open_pair(party, bits[i], one);
-        CHECK(opened_bit.match == expected[i]);
-    }
+    std::vector<Word> expected_bits{1, 0, 1, 1, 0};
+    CHECK(party.open_for_test_harness(bits) == expected_bits);
     const std::vector<LocalShare> halves =
         party.halve(std::vector<LocalShare>{party.constant(15), party.constant(0),
                                             party.constant((Word{1} << 64) + 1)});
-    CHECK(open_pair(party, one, halves[0]).station_id == 7);
-    CHECK(!open_pair(party, halves[1], halves[1]).match);  // floor(0/2) = 0
-    CHECK(open_pair(party, one, halves[2]).station_id == (std::uint64_t{1} << 63));
+    CHECK(open_value(party, halves[0]) == 7);
+    CHECK(open_value(party, halves[1]) == 0);
+    CHECK(open_value(party, halves[2]) == (Word{1} << 63));
+
+    // 6. The authorised reveal opens (match, match * id) and rejects values
+    //    outside that domain on both parties.
+    const AuthorizedSelection selected = party.reveal_selection(one, party.constant(42));
+    CHECK(selected.match && selected.station_id == 42);
+    const AuthorizedSelection none = party.reveal_selection(party.constant(0), party.constant(0));
+    CHECK(!none.match && none.station_id == 0);
+    for (const auto& [match, id] : {std::pair<Word, Word>{2, 0}, {0, 42}, {1, Word{1} << 64}}) {
+        bool rejected = false;
+        try {
+            party.reveal_selection(party.constant(match), party.constant(id));
+        } catch (const std::runtime_error&) {
+            rejected = true;
+        }
+        CHECK(rejected);
+    }
+    CHECK(party.triples_remaining() == 36);
 
     const BackendStats stats = party.finish();
     CHECK(stats.triples_requested == 104);

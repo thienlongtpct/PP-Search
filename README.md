@@ -15,6 +15,9 @@ result     = eligible station minimising (q_i, station_id), or "no match"
 
 * The coordinator and both parties learn only match/no-match and the
   selected station ID.
+* The search is fully oblivious: its control flow, round count and message
+  sizes depend only on the public station count and horizon. No distance,
+  eligibility bit or candidate set is ever opened.
 * The selected station receives the requester's exact encoded coordinates.
 * All other stations receive nothing.
 
@@ -70,7 +73,7 @@ build-mpc/pp_party --party-id 1 --listen 127.0.0.1:15701 --peer 127.0.0.1:15710 
 # One search. Every command is a separate process and prints JSON.
 S=$(build-mpc/pp_client new-session)
 C="--pki pki --party0 127.0.0.1:15700 --party1 127.0.0.1:15701 --session $S"
-build-mpc/pp_client coordinator $C --horizon 100 --mode binary --requester alice --stations 10,20 &
+build-mpc/pp_client coordinator $C --horizon 100 --requester alice --stations 10,20 &
 build-mpc/pp_client requester   $C --name alice --x 0 --y 0 &
 build-mpc/pp_client station     $C --id 10 --x 2 --y 0 --radius 10 &
 build-mpc/pp_client station     $C --id 20 --x 1 --y 1 --radius 10 &
@@ -92,7 +95,6 @@ Useful `pp_party` options:
 
 `pp_client stations --file stations.csv` submits many stations from one
 process, each with its own certificate and connections.
-`--mode argmin` selects the direct-argmin baseline.
 
 Coordinates are signed 32-bit integers in a Cartesian frame (for example
 metres in a local projected frame), not raw latitude/longitude. Support radii
@@ -106,7 +108,8 @@ Implemented and tested:
 * independent input sharing by every owner over mutually authenticated TLS;
 * MP-SPDZ Beaver multiplication with OT-generated, consume-once triples;
 * MP-SPDZ exact comparison and truncation;
-* binary-search-then-exact-selection and direct-argmin modes;
+* oblivious private binary search with a fixed, padded round count, then an
+  exact oblivious tournament for the minimum `(q, id)`;
 * recipient-specific output delivery;
 * timeouts and coordinated aborts;
 * process-level tests and real two-process benchmarks.

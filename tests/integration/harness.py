@@ -196,7 +196,7 @@ class Deployment:
             return []
         return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
 
-    def run_session(self, requester, stations, horizon, mode="binary", timeout_ms=30000,
+    def run_session(self, requester, stations, horizon, timeout_ms=30000,
                     station_order=None, stagger=0.0, batch_stations_file=None,
                     coordinator_args=(), station_ids_override=None, extra=None):
         """requester = (name, x, y); stations = [(id, x, y, radius)].
@@ -207,7 +207,7 @@ class Deployment:
         session = secrets.token_hex(16)
         ids = station_ids_override if station_ids_override is not None else [s[0] for s in stations]
         started = time.time()
-        coordinator = self.spawn("coordinator", session, "--horizon", horizon, "--mode", mode,
+        coordinator = self.spawn("coordinator", session, "--horizon", horizon,
                                  "--requester", requester[0], "--timeout-ms", timeout_ms,
                                  *(["--stations-file", batch_stations_file] if batch_stations_file
                                    else ["--stations", ",".join(str(i) for i in ids)]),

@@ -147,7 +147,7 @@ ID without comparing IDs. Each level costs one batched comparison and three
 multiplication rounds. The root's ID is multiplied by its valid bit, so a
 no-match run opens ID 0.
 
-**Binary range search, then exact selection (`--mode binary`).**
+**Binary range search, then exact selection (the only mode).**
 `low = 0`, `high = D + 1` (the no-match sentinel), and for a fixed public
 count of `T = bit_width(D + 1)` rounds:
 
@@ -167,19 +167,22 @@ of the sentinel: `low = D + 1` leaves no candidate because `eligible_i` already
 requires `q_i ≤ D²`. No bound, comparison bit, existence bit or candidate mask
 is ever opened.
 
-**Direct argmin (`--mode argmin`)** runs the same tournament on `eligible_i`
-directly, with identical eligibility and output semantics. It is the baseline.
-Both modes are exercised by every functional test, and the benchmarks compare
-them. Binary search is *not* assumed to be faster; in the measurements it is
-slower (see `docs/BENCHMARKS.md`).
+Every station takes part in every round; nothing is pruned. Binary search is
+*not* faster than running the tournament on `eligible_i` directly (the
+removed direct-argmin mode): it adds `T` rounds of `N` comparisons each.
 
-Operation counts are functions of `(N, D, mode)` only (`plan_search`,
-verified in `tests/test_units.cpp`):
+Operation counts are functions of `(N, D)` only (`plan_search`, verified in
+`tests/test_units.cpp`):
 
-| | multiplications | comparisons | halvings |
+| multiplications | comparisons | halvings | reveals |
 |---|---|---|---|
-| argmin | 3N + N + 5(N − 1) + 1 | 2N + (N − 1) | 0 |
-| binary | argmin + T·(2N + 4) + 1 + N | argmin + T·(N + 1) + N | T |
+| 4N + T·(2N + 4) + 1 + N + 5(N − 1) + 1 | 2N + T·(N + 1) + N + (N − 1) | T | 1 |
+
+Each party logs the plan and the operations its backend actually executed
+(`plan` and `operations` in `--stats`), and aborts the session if the executed
+multiplications differ from the plan. The tests check that the two are equal
+and that sessions with the same `(N, D)` but different data run identical
+operations.
 
 ## Preprocessing
 
@@ -222,7 +225,8 @@ carry `(session_id, owner kind, station_id, field, sequence)`.
 
 1. **Open.** The coordinator connects to both parties and sends
    `SessionOpen{horizon, mode, timeout, requester name, strictly increasing
-   station IDs}`.
+   station IDs}`. The only mode is `1` (binary search then exact selection);
+   the removed direct-argmin mode `2` is rejected.
 2. **Agree.** The parties exchange a SHA-256 digest of the session parameters
    over their control channel and abort on mismatch.
 3. **Inputs.** Each owner splits each field with fresh CSPRNG randomness
@@ -303,6 +307,6 @@ src/             party_main.cpp (pp_party), client_main.cpp (pp_client),
 mpc/pp_ops.py    exported MP-SPDZ functions (leq, half)
 scripts/         build_mpspdz.sh, provision_test_pki.py, prepare_party_runtime.py, demo_local.sh
 tests/           unit tests, two-process preprocessing harness, process-level integration
-benchmarks/      run_benchmarks.py, results/, historical/ (simulator-only data)
+benchmarks/      run_benchmarks.py, results/
 third_party/     mp-spdz.lock, patches/, mp-spdz/ (checkout, not versioned)
 ```

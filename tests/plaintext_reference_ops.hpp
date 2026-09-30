@@ -7,10 +7,14 @@
 // over many random cases quickly. It lives in tests/ and is never linked into
 // pp_party or pp_client. Security-relevant behaviour is tested with two real
 // computation-party processes (tests/integration).
+//
+// It also records the sequence of interactive operations and their sizes, so
+// tests can check that the search's control flow is independent of the data.
 
 #include "pps/search.hpp"
 
 #include <stdexcept>
+#include <utility>
 
 namespace pps::testing {
 
@@ -21,6 +25,7 @@ public:
     std::vector<LocalShare> multiply(std::span<const LocalShare> x,
                                      std::span<const LocalShare> y) override {
         check_sizes(x.size(), y.size());
+        trace_.emplace_back('*', x.size());
         std::vector<LocalShare> out(x.size());
         for (std::size_t i = 0; i < x.size(); ++i) {
             out[i].value = x[i].value * y[i].value;
@@ -31,6 +36,7 @@ public:
     std::vector<LocalShare> less_equal(std::span<const LocalShare> x,
                                        std::span<const LocalShare> y) override {
         check_sizes(x.size(), y.size());
+        trace_.emplace_back('<', x.size());
         std::vector<LocalShare> out(x.size());
         for (std::size_t i = 0; i < x.size(); ++i) {
             check_domain(x[i].value);
@@ -41,6 +47,7 @@ public:
     }
 
     std::vector<LocalShare> halve(std::span<const LocalShare> x) override {
+        trace_.emplace_back('/', x.size());
         std::vector<LocalShare> out(x.size());
         for (std::size_t i = 0; i < x.size(); ++i) {
             check_domain(x[i].value);
@@ -51,13 +58,20 @@ public:
 
     AuthorizedSelection reveal_selection(const LocalShare& match,
                                          const LocalShare& station_id) override {
+        trace_.emplace_back('!', 2);
         if (match.value > 1 || (match.value == 0 && station_id.value != 0)) {
             throw std::logic_error("reveal_selection received an invalid selection");
         }
         return {match.value == 1, static_cast<std::uint64_t>(station_id.value)};
     }
 
+    // (operation, batch size) of every interactive step, in order.
+    using Trace = std::vector<std::pair<char, std::size_t>>;
+    const Trace& trace() const { return trace_; }
+
 private:
+    Trace trace_;
+
     // Enforces the documented operand bound of the secure functions.
     static void check_domain(Word value) {
         if ((value >> kComparisonOperandBits) != 0) {

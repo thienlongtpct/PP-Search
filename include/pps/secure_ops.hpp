@@ -32,6 +32,18 @@ struct AuthorizedSelection {
     std::uint64_t station_id = 0;
 };
 
+// Operations executed by one party (or counted by a planner). Each batched
+// call is one step; the element counts are summed.
+struct OperationCounts {
+    std::uint64_t multiplications = 0;
+    std::uint64_t comparisons = 0;
+    std::uint64_t halvings = 0;
+    std::uint64_t multiply_steps = 0;
+    std::uint64_t compare_steps = 0;
+    std::uint64_t halve_steps = 0;
+    std::uint64_t reveal_steps = 0;
+};
+
 class SecureOps {
 public:
     virtual ~SecureOps() = default;

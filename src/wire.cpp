@@ -209,11 +209,9 @@ SessionOpen decode_session_open(const std::vector<std::uint8_t>& payload) {
     Reader reader(payload);
     SessionOpen value;
     value.horizon = reader.u32();
-    const std::uint8_t mode = reader.u8();
-    if (mode != 1 && mode != 2) {
+    if (reader.u8() != static_cast<std::uint8_t>(Mode::kBinaryThenExact)) {
         throw ProtocolError("unknown search mode");
     }
-    value.mode = static_cast<Mode>(mode);
     expect_zero(reader.u8(), "session-open padding");
     expect_zero(reader.u16(), "session-open padding");
     value.timeout_ms = reader.u32();

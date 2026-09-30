@@ -23,7 +23,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from harness import Deployment, Paths, add_path_arguments, plaintext_oracle, run_parallel  # noqa: E402
 
 MIN32, MAX32, MAXU32 = -2**31, 2**31 - 1, 2**32 - 1
-MODES = ("binary", "argmin")
 STATION_IDS = [1, 2, 3, 4, 5, 9, 10, 20, 30, 77, 78] + list(range(101, 131))
 REQUESTERS = ["alice", "bob", "carol"]
 SECRET_MARKERS = ("1234567", "7654321")
@@ -61,11 +60,10 @@ def check_selection(result, expected_id, requester_xy):
                    "output shares delivered to a non-selected station", result)
 
 
-def oracle_session(deployment, requester, stations, horizon, modes=MODES, **kwargs):
+def oracle_session(deployment, requester, stations, horizon, **kwargs):
     expected = plaintext_oracle(requester[1:], stations, horizon)
-    for mode in modes:
-        result = deployment.run_session(requester, stations, horizon, mode=mode, **kwargs)
-        check_selection(result, expected, requester[1:])
+    result = deployment.run_session(requester, stations, horizon, **kwargs)
+    check_selection(result, expected, requester[1:])
     return expected
 
 
@@ -97,20 +95,25 @@ def test_insufficient_support_radius(d):
 def test_ties_are_independent_of_arrival_order(d):
     stations = [(9, 3, 4, 5), (4, -3, -4, 5)]
     for order in ([9, 4], [4, 9]):
-        for mode in MODES:
-            result = d.run_session(("alice", 0, 0), stations, 10, mode=mode, station_order=order,
-                                   stagger=0.4)
-            check_selection(result, 4, (0, 0))
+        result = d.run_session(("alice", 0, 0), stations, 10, station_order=order, stagger=0.4)
+        check_selection(result, 4, (0, 0))
 
 
 def test_empty_and_all_ineligible(d):
-    for mode in MODES:
-        check_selection(d.run_session(("alice", 0, 0), [], 100, mode=mode), None, (0, 0))
+    check_selection(d.run_session(("alice", 0, 0), [], 100), None, (0, 0))
     expect(oracle_session(d, ("alice", 0, 0), [(1, 5, 5, 1), (2, 6, 6, 2)], 100) is None, "ineligible")
 
 
 def test_zero_distance_and_zero_radius(d):
     expect(oracle_session(d, ("alice", 7, 7), [(3, 7, 7, 0)], 0) == 3, "zero")
+
+
+def test_near_ties_and_ties(d):
+    # q = 2500, 2500, 2401, 2500: the same radius r* = 50 covers all four.
+    stations = [(1, 30, 40, 100), (2, -50, 0, 100), (3, 0, 49, 100), (4, 48, 14, 100)]
+    expect(oracle_session(d, ("alice", 0, 0), stations, 1000) == 3, "near tie")
+    # Three stations tie at q = 2500: the smallest ID wins.
+    expect(oracle_session(d, ("alice", 0, 0), [s for s in stations if s[0] != 3], 1000) == 1, "tie")
 
 
 def test_negative_and_extreme_coordinates(d):
@@ -123,25 +126,25 @@ def test_negative_and_extreme_coordinates(d):
 def test_repeated_requests_different_requesters(d):
     stations = [(1, 10, 0, 50), (2, 90, 0, 50)]
     for requester, expected in ((("alice", 0, 0), 1), (("bob", 100, 0), 2), (("carol", 50, 1), 1)):
-        result = d.run_session(requester, stations, 1000, mode="binary")
+        result = d.run_session(requester, stations, 1000)
         check_selection(result, expected, requester[1:])
 
 
 def test_randomised_against_oracle(d):
     rng = random.Random(20260924)  # public seed for test data only; shares use the CSPRNG
-    for trial in range(8):
+    for trial in range(12):
         count = rng.randint(1, 7)
         ids = rng.sample(range(101, 131), count)
         stations = [(i, rng.randint(-40, 40), rng.randint(-40, 40), rng.randint(0, 60)) for i in ids]
         requester = (rng.choice(REQUESTERS), rng.randint(-40, 40), rng.randint(-40, 40))
         horizon = rng.randint(0, 80)
-        oracle_session(d, requester, stations, horizon, modes=(MODES[trial % 2],))
+        oracle_session(d, requester, stations, horizon)
 
 
 def test_log_hygiene_session(d):
     # Distinctive requester coordinates; checked against logs at the end.
     stations = [(1, 1234560, 7654320, 100)]
-    oracle_session(d, ("alice", 1234567, 7654321), stations, 1000, modes=("binary",))
+    oracle_session(d, ("alice", 1234567, 7654321), stations, 1000)
 
 
 def test_duplicate_station_ids(d):
@@ -222,14 +225,21 @@ def test_disconnect_and_malformed_messages(d):
 def test_statistics_consistency(d):
     lines = [d.stats_lines(0), d.stats_lines(1)]
     expect(len(lines[0]) == len(lines[1]) and lines[0], "both parties record every session")
+    by_shape = {}
     for a, b in zip(*lines):
         expect(a["session"] == b["session"] and a["status"] == b["status"], "session logs differ", [a, b])
-        if a["status"] == "ok" and "plan" in a:
+        if a["status"] == "ok" and "operations" in a:
             for s in (a, b):
                 expect(s["triples_remaining"] == 0 and
-                       s["triples_consumed"] == s["plan"]["multiplications"],
+                       s["triples_consumed"] == s["triples_requested"] ==
+                       s["plan"]["multiplications"],
                        "every generated triple consumed exactly once", s)
+                # Obliviousness: what ran is exactly the public plan for (N, D).
+                expect(s["operations"] == s["plan"], "executed operations differ from the plan", s)
             expect(a.get("selected_station") == b.get("selected_station"), "parties disagree", [a, b])
+            shape = (a["stations"], a["horizon"])
+            expect(by_shape.setdefault(shape, a["operations"]) == a["operations"],
+                   "operation counts depend on more than (N, D)", [shape, a])
 
 
 def test_no_secrets_in_logs(d):
@@ -241,8 +251,8 @@ def test_no_secrets_in_logs(d):
 def run_exhaustion_test(paths, work):
     with Deployment(paths, work / "exhaustion", station_ids=[1, 2], requesters=["alice"],
                     party_args=["--test-triple-shortfall", "1"]) as d:
-        for mode in MODES:
-            result = d.run_session(("alice", 0, 0), [(1, 1, 0, 10), (2, 2, 0, 10)], 100, mode=mode)
+        for _ in range(2):
+            result = d.run_session(("alice", 0, 0), [(1, 1, 0, 10), (2, 2, 0, 10)], 100)
             expect_abort(result, "preprocessing-exhausted")
             expect(all(o.get("status") == "aborted" for o in result["stations"].values()),
                    "stations must see the abort", result)
@@ -257,8 +267,7 @@ def run_concurrency_test(paths, work, pki):
     try:
         jobs = [
             lambda: deployments[0].run_session(("alice", 0, 0), [(1, 5, 0, 10), (2, 3, 0, 10)], 50),
-            lambda: deployments[1].run_session(("bob", 100, 100), [(1, 90, 100, 20), (2, 97, 100, 1)], 50,
-                                               mode="argmin"),
+            lambda: deployments[1].run_session(("bob", 100, 100), [(1, 90, 100, 20), (2, 97, 100, 1)], 50),
         ]
         first, second = run_parallel(jobs)
         check_selection(first, 2, (0, 0))
@@ -294,7 +303,7 @@ def main():
         for test in (test_specification_example, test_horizon_boundaries,
                      test_insufficient_support_radius, test_ties_are_independent_of_arrival_order,
                      test_empty_and_all_ineligible, test_zero_distance_and_zero_radius,
-                     test_negative_and_extreme_coordinates,
+                     test_near_ties_and_ties, test_negative_and_extreme_coordinates,
                      test_repeated_requests_different_requesters, test_randomised_against_oracle,
                      test_log_hygiene_session, test_duplicate_station_ids,
                      test_duplicate_and_unauthorised_submissions, test_timeout,

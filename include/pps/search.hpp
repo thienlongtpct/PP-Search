@@ -6,8 +6,15 @@
 //   eligible_i = [q_i <= R_i^2] AND [q_i <= D^2]
 //   result     = eligible station minimising (q_i, station_id), or no match
 //
-// Control flow depends only on public values (station count, horizon D,
-// mode), never on secret data, and no intermediate value is opened.
+// Fully oblivious: control flow, round count and every operation's size
+// depend only on public values (station count N, horizon D), never on secret
+// data. No intermediate value is opened; the only reconstruction is the final
+// (match bit, match * selected ID) pair the output policy authorises.
+//
+// A private binary search with a public, padded round count first finds the
+// smallest radius r* containing an eligible station; an exact tournament over
+// all N stations then selects the minimum (q, id) among the eligible stations
+// with q <= r*^2. Every station takes part in every round.
 //
 // Tie-breaking without comparing IDs: stations are processed in ascending
 // public ID order, and the tournament always pairs adjacent contiguous
@@ -17,7 +24,6 @@
 // independent of the order in which inputs arrived.
 
 #include "pps/secure_ops.hpp"
-#include "pps/wire.hpp"
 
 #include <bit>
 #include <cstdint>
@@ -26,8 +32,6 @@
 #include <vector>
 
 namespace pps {
-
-using SearchMode = wire::Mode;
 
 struct RequesterShares {
     LocalShare x;
@@ -127,8 +131,7 @@ inline AuthorizedSelection tournament(SecureOps& ops, Candidates layer) {
 inline AuthorizedSelection nearest_eligible_station(SecureOps& ops,
                                                     const RequesterShares& requester,
                                                     std::span<const StationShares> stations,
-                                                    std::uint32_t horizon,
-                                                    SearchMode mode) {
+                                                    std::uint32_t horizon) {
     for (std::size_t i = 1; i < stations.size(); ++i) {
         if (stations[i].id <= stations[i - 1].id) {
             throw std::invalid_argument("stations must be sorted by strictly increasing ID");
@@ -170,14 +173,6 @@ inline AuthorizedSelection nearest_eligible_station(SecureOps& ops,
     candidates.id.reserve(n);
     for (const StationShares& station : stations) {
         candidates.id.push_back(ops.constant(station.id));
-    }
-
-    if (mode == SearchMode::kDirectArgmin) {
-        candidates.valid = eligible;
-        return detail::tournament(ops, std::move(candidates));
-    }
-    if (mode != SearchMode::kBinaryThenExact) {
-        throw std::invalid_argument("unknown search mode");
     }
 
     // Private binary search for r* = min { r in [0, D] : exists eligible i
@@ -227,20 +222,11 @@ inline AuthorizedSelection nearest_eligible_station(SecureOps& ops,
 
 // ---- Cost planning ----------------------------------------------------------
 
-struct OperationCounts {
-    std::uint64_t multiplications = 0;
-    std::uint64_t comparisons = 0;
-    std::uint64_t halvings = 0;
-    std::uint64_t multiply_steps = 0;
-    std::uint64_t compare_steps = 0;
-    std::uint64_t halve_steps = 0;
-    std::uint64_t reveal_steps = 0;
-};
-
 // Replays the public control flow to count operations and synchronised
 // steps. It holds no inputs and never computes on secret data; it exists so
 // each party can preprocess exactly the multiplication triples a session
-// consumes.
+// consumes. Because the search is oblivious, the counts are exact for every
+// input with the same (N, D), not just an upper bound.
 class CostPlanner final : public SecureOps {
 public:
     int party_id() const override { return 0; }
@@ -275,14 +261,13 @@ private:
     OperationCounts counts_;
 };
 
-inline OperationCounts plan_search(std::size_t station_count, std::uint32_t horizon,
-                                   SearchMode mode) {
+inline OperationCounts plan_search(std::size_t station_count, std::uint32_t horizon) {
     CostPlanner planner;
     std::vector<StationShares> stations(station_count);
     for (std::size_t i = 0; i < station_count; ++i) {
         stations[i].id = i + 1;
     }
-    nearest_eligible_station(planner, RequesterShares{}, stations, horizon, mode);
+    nearest_eligible_station(planner, RequesterShares{}, stations, horizon);
     return planner.counts();
 }
 

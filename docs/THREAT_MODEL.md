@@ -33,8 +33,8 @@ This implementation makes **no** claim of:
 
 Every participant may know the following:
 
-* the session ID, the requester's *name* (certificate identity), the search
-  mode and the input timeout;
+* the session ID, the requester's *name* (certificate identity) and the
+  input timeout;
 * the horizon `D`;
 * the set, count and IDs of participating stations;
 * which input owners connected, and when;
@@ -135,6 +135,10 @@ The process-level tests
 * rejection of malformed, duplicate and unauthorised input;
 * timeouts, disconnects and aborts;
 * exact triple consumption and exhaustion;
+* that both parties' executed operation counts equal the public plan for
+  `(N, D)`, and are identical across sessions with the same `(N, D)` but
+  different inputs (the unit tests additionally compare the full sequence of
+  interactive operations and batch sizes against an all-zero input);
 * the absence of a distinctive requester coordinate from party logs.
 
 A code audit (`grep` for openings and reconstruction, and `nm` on the

@@ -37,7 +37,7 @@ client() { "$build/pp_client" "$1" --pki "$work/pki" --party0 127.0.0.1:15700 \
 
 # 4. One search: requester at (0,0); stations 10 at (2,0), 20 at (1,1), 30 at (500,0).
 session="$("$build/pp_client" new-session)"
-client coordinator --horizon 100 --mode binary --requester alice --stations 10,20,30 \
+client coordinator --horizon 100 --requester alice --stations 10,20,30 \
     > "$work/coordinator.json" &
 client requester --name alice --x 0 --y 0 > "$work/requester.json" &
 client station --id 10 --x 2 --y 0 --radius 10 > "$work/station10.json" &

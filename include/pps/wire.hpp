@@ -54,7 +54,8 @@ enum class Step : std::uint32_t {
 
 enum class OwnerKind : std::uint8_t { kRequester = 1, kStation = 2 };
 enum class Field : std::uint8_t { kX = 1, kY = 2, kRadius = 3 };
-enum class Mode : std::uint8_t { kBinaryThenExact = 1, kDirectArgmin = 2 };
+// The only search mode: oblivious binary search then exact tournament (search.hpp).
+enum class Mode : std::uint8_t { kBinaryThenExact = 1 };
 
 struct Frame {
     MsgType type{};
