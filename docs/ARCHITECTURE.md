@@ -7,9 +7,7 @@ value, and evaluate the search with the MP-SPDZ `semi2k` protocol. Input
 owners share their own inputs; no process ever holds both shares of a private
 input or intermediate value.
 
-The earlier single-process simulator (`MpcRuntime`, which stored both shares
-and reconstructed operands for comparisons and midpoints) has been removed.
-The only plaintext evaluator left is `tests/plaintext_reference_ops.hpp`,
+The only plaintext evaluator is `tests/support/plaintext_reference_ops.hpp`,
 which is labelled test-only, lives under `tests/`, and is never linked into a
 deployed binary.
 
@@ -59,23 +57,23 @@ missing `template` keywords that Apple clang 21 rejects). The patch does not
 touch any cryptographic code. `scripts/build_mpspdz.sh` checks out and verifies
 these revisions, applies the patch, builds MP-SPDZ, and archives exactly the
 object files `semi2k` needs into `libpps_mpspdz.a`. It also records MP-SPDZ's
-compiler and linker flags, so CMake compiles `src/mpspdz_party.cpp`, the only
+compiler and linker flags, so CMake compiles `src/backend/mpspdz_party.cpp`, the only
 translation unit that includes MP-SPDZ headers, with identical settings. Our
 build never defines `NDEBUG`, because mixing it with MP-SPDZ's objects would be
 an ODR violation, and assertions stay active in release builds.
 
 ### How the backend is used
 
-`MpSpdzParty` (`include/pps/mpspdz_party.hpp`) implements the common
+`MpSpdzParty` (`src/backend/mpspdz_party.hpp`) implements the common
 `SecureOps` interface for one party:
 
 | Operation | Implementation | Communication |
 |---|---|---|
-| `add`, `sub`, `scale`, `constant` | local on the `LocalShare` (party 0 adds public constants) | none |
+| `add`, `sub`, `constant` | local on the `LocalShare` (party 0 adds public constants) | none |
 | `multiply` (batched) | MP-SPDZ's `Beaver<Semi2kShare<128>>` protocol. It opens only `x - a` and `y - b` | one round per batch |
 | `less_equal` (batched) | exported MP-SPDZ function `leq` (`mpc/pp_ops.py`): `a <= b` with bit length 67 | MP-SPDZ-internal rounds |
-| `halve` (batched) | exported function `half`: exact unsigned right shift by one (`TruncRing`) | MP-SPDZ-internal rounds |
-| `and_bits`, `or_bits`, `not_bit`, `select`, `midpoint`, `reduce_or` | composed from the above: AND = product, OR = a + b − ab, NOT = 1 − a, select = f + c(t − f), midpoint = halve(low + high), balanced OR tree | as composed |
+| `fits_u32` (batched) | exported MP-SPDZ function `fits_u32` (`mpc/pp_ops.py`): `[0 ≤ v < 2^32]` over all 128 ring bits | MP-SPDZ-internal rounds |
+| `and_bits`, `not_bit`, `select` | composed from the above: AND = product, NOT = 1 − a, select = f + c(t − f) | as composed |
 | `reveal_selection` | MP-SPDZ `SemiMC` opening of exactly the match bit and `match · station_id` | one round |
 
 There is no generic "open" or "reconstruct" operation in `SecureOps`.
@@ -84,7 +82,7 @@ The exported functions are compiled by CMake with
 `compile.py -E semi2k -R 128 mpc/pp_ops.py`, for every power-of-two vector
 size from 1 to 4096. A batch of `n` operations is split into chunks of at most
 4096 and each chunk is padded to the next power of two with public zeros.
-MP-SPDZ compiles the comparison and the truncation for `semi2k` into its
+MP-SPDZ compiles the comparison for `semi2k` into its
 two-party "split" technique: each party decomposes its own arithmetic share
 into binary shares, and an exact binary adder circuit is evaluated on them. It
 uses binary triples and daBits generated with OT (DEK20-style ring
@@ -109,21 +107,20 @@ All private values are elements of the ring Z_(2^128) (`Semi2kShare<128>`).
 | `dx, dy` | in (−2^32, 2^32) |
 | `q_i = dx² + dy²` | ≤ 2·(2^32 − 1)² < 2^65. This needs 65 bits and is never truncated to 64 bits. |
 | `R_i²`, `D²` | < 2^64 |
-| Binary-search bounds `low, high` | in [0, D + 1] ⊆ [0, 2^32]; `low + high` ≤ 2^33; `mid²` ≤ 2^64 |
-| Comparison and halving operands | unsigned, < 2^66 (`kComparisonOperandBits = 66`) |
+| Comparison operands | unsigned, < 2^66 (`kComparisonOperandBits = 66`) |
 
-No intermediate value approaches 2^128, so ring arithmetic equals integer
-arithmetic for every quantity above. MP-SPDZ ring comparisons treat operands as
-signed integers of the program bit length (67) and compare their difference.
-Operands in [0, 2^66) are therefore compared exactly as unsigned integers. The
-largest difference magnitude is < 2^66, which is within the 67-bit signed
-domain and far below the 128-bit ring. Halving uses exact truncation. Division
-by two is **not** multiplication by an inverse, because 2 has no inverse
-modulo 2^k.
+For inputs in their domains, no intermediate value approaches 2^128, so ring
+arithmetic equals integer arithmetic for every quantity above. MP-SPDZ ring
+comparisons take the sign of the operands' difference, read from its low
+`bit_length + 1` = 68 bits. Operands in [0, 2^66) are therefore compared exactly as
+unsigned integers. The largest difference magnitude is < 2^66, which is inside that
+width and far below the 128-bit ring.
 
-Input owners validate their own values (`encode_coordinate`,
-`encode_radius`). The parties cannot validate secret-shared inputs; see the
-threat model for what an out-of-range input can do.
+Those bounds only hold for inputs in their domains, because a comparison cannot see
+the ring bits above its width. Honest owners check their own values
+(`encode_coordinate`, `encode_radius`), but the parties cannot rely on that, so the
+search excludes out-of-domain inputs inside the MPC; see "Search functionality"
+and the threat model.
 
 ## Search functionality
 
@@ -147,41 +144,48 @@ ID without comparing IDs. Each level costs one batched comparison and three
 multiplication rounds. The root's ID is multiplied by its valid bit, so a
 no-match run opens ID 0.
 
-**Binary range search, then exact selection (the only mode).**
-`low = 0`, `high = D + 1` (the no-match sentinel), and for a fixed public
-count of `T = bit_width(D + 1)` rounds:
+**Direct selection (the only mode).** The eligibility bits directly initialise
+the tournament's validity bits, `w_i = eligible_i`, and the tournament runs over
+all `N` stations. The horizon `D` is only the public operand of `[q_i ≤ D²]`; it
+does not change the schedule. No comparison bit, intermediate winner or eligibility bit is
+ever opened, and invalid leaves stay in the schedule.
 
-1. `mid = halve(low + high)` (secure midpoint), then `mid²`, computed **once
-   per round**.
-2. One batched comparison: `[q_i ≤ mid²]` for all `i`, plus `[high ≤ low]`
-   (the convergence test).
-3. `found = OR_i (eligible_i AND [q_i ≤ mid²])` via a balanced OR tree.
-4. `moving = NOT [high ≤ low]`; `high ← select(moving ∧ found, mid, high)`;
-   `low ← select(moving ∧ ¬found, mid + 1, low)`.
+Input owners choose their own shares, so the parties cannot assume inputs are in
+their domains, and comparisons with bit length 67 ignore the higher ring bits.
+Each session therefore computes `[0 ≤ v < 2^32]` for every station's `P_x + 2^31`,
+`P_y + 2^31` and `R`, and for the requester's `A_x + 2^31` and `A_y + 2^31`, with no
+opening. Those five bits are ANDed into every station's eligibility bit. An
+out-of-domain station is never eligible, and an out-of-domain requester gives no
+match. Distances computed from such inputs are still evaluated, because the
+schedule cannot depend on them, but they cannot affect the result: comparisons
+always return bits, and the tournament ignores the distance of an invalid candidate.
 
-After `T` rounds `low = ⌈√min eligible q⌉`, or `D + 1` if nothing is eligible.
-The padding is safe: once `low = high`, `moving = 0` and both bounds stay
-fixed. The candidates are then `eligible_i AND [q_i ≤ low²]`, and the exact
-tournament picks the minimum `(q, id)` among them. The no-match case falls out
-of the sentinel: `low = D + 1` leaves no candidate because `eligible_i` already
-requires `q_i ≤ D²`. No bound, comparison bit, existence bit or candidate mask
-is ever opened.
+Operation counts are functions of `N` only for `N ≥ 1` (`plan_search`, verified
+in `tests/unit/test_search.cpp`, and against the real backend in
+`tests/integration/test_processes.py`):
 
-Every station takes part in every round; nothing is pruned. Binary search is
-*not* faster than running the tournament on `eligible_i` directly (the
-removed direct-argmin mode): it adds `T` rounds of `N` comparisons each.
-
-Operation counts are functions of `(N, D)` only (`plan_search`, verified in
-`tests/test_units.cpp`):
-
-| multiplications | comparisons | halvings | reveals |
+| phase | multiplications | comparisons | range checks |
 |---|---|---|---|
-| 4N + T·(2N + 4) + 1 + N + 5(N − 1) + 1 | 2N + T·(N + 1) + N + (N − 1) | T | 1 |
+| distances and radii | 3N | 0 | 0 |
+| eligibility and input domains (three AND batches) | 5N + 1 | 2N | 3N + 2 |
+| tournament (N − 1 pairs, 5 products and 1 comparison each) | 5(N − 1) | N − 1 | 0 |
+| output mask | 1 | 0 | 0 |
+| **total** | **M = 13N − 3** | **C = 3N − 1** | **K = 3N + 2** |
+
+Each range check is two comparisons over 128 bits inside MP-SPDZ. There are
+one reveal. The dependency depth is
+`O(1 + log N)`: one batch of squares, one batched comparison, one batched range
+check and three AND batches, then
+one comparison and three multiplication batches on each of `⌈log₂ N⌉` tournament
+levels, then the mask and the reveal. These are application-level counts:
+MP-SPDZ's own comparison preprocessing and rounds are additional and are
+measured, not counted, in `docs/BENCHMARKS.md`. An empty station list is public
+and runs no secure operations, so the formulas apply from `N = 1`.
 
 Each party logs the plan and the operations its backend actually executed
 (`plan` and `operations` in `--stats`), and aborts the session if the executed
 multiplications differ from the plan. The tests check that the two are equal
-and that sessions with the same `(N, D)` but different data run identical
+and that sessions with the same `N` but different data or horizons run identical
 operations.
 
 ## Preprocessing
@@ -197,21 +201,21 @@ operations.
   `PreprocessingExhausted` and the session aborts; there is no fallback. The
   store is emptied at the start of every session. Each session asserts that
   `triples_consumed == M` and `triples_remaining == 0`.
-* **Comparison and truncation preprocessing** (binary triples, daBits) is
+* **Comparison preprocessing** (binary triples, daBits) is
   generated on demand by MP-SPDZ inside the exported functions. It is held in
   MP-SPDZ's own consume-once buffers in the party's worker thread for the life
   of the process. Leftover elements of a batch may serve a later session, but
   no element is used twice.
-* **Test harness.** `tests/test_preprocessing.cpp` runs as two processes and
+* **Test harness.** `tests/integration/preprocessing_party.cpp` runs as two processes and
   links a separately compiled backend with `PPS_TEST_HARNESS`. It opens
   triples to check `c = a·b`, checks that consumption is exact, that
   exhaustion is reported, that regenerated triples are fresh, and that
-  comparison and halving are correct at the edges of the 66-bit domain. The
+  comparison is correct at the edges of the 66-bit domain. The
   opening routine does not exist in `pp_party` (verified with `nm`).
 
 ## Session protocol
 
-All non-MPC channels use one framed message format (`include/pps/wire.hpp`):
+All non-MPC channels use one framed message format (`src/net/wire.hpp`):
 
 ```
 magic "PPS1" | version u16 | type u16 | session_id[16] | step u32 |
@@ -225,8 +229,7 @@ carry `(session_id, owner kind, station_id, field, sequence)`.
 
 1. **Open.** The coordinator connects to both parties and sends
    `SessionOpen{horizon, mode, timeout, requester name, strictly increasing
-   station IDs}`. The only mode is `1` (binary search then exact selection);
-   the removed direct-argmin mode `2` is rejected.
+   station IDs}`. The only mode is `2` (direct selection); any other value is rejected.
 2. **Agree.** The parties exchange a SHA-256 digest of the session parameters
    over their control channel and abort on mismatch.
 3. **Inputs.** Each owner splits each field with fresh CSPRNG randomness
@@ -244,7 +247,9 @@ carry `(session_id, owner kind, station_id, field, sequence)`.
    the session.
 4. **Agree on inputs.** The parties compare a digest over the station set and
    every owner's submission ID. This guarantees both hold shares of the *same*
-   sharing; for example, racing duplicate submissions abort the session.
+   submission; for example, racing duplicate submissions abort the session.
+   Whatever a dishonest owner sends, its two shares add up to one ring element,
+   which the in-MPC range check covers.
 5. **Offline, then online MPC** as described above.
 6. **Output.** Both parties open `(match, match·id)` to each other. If there is
    a match, each party sends its own share of `(A_x, A_y)` to the selected
@@ -258,7 +263,7 @@ carry `(session_id, owner kind, station_id, field, sequence)`.
 
 ### Transport
 
-`TlsConnection` (`src/tls_transport.cpp`) uses OpenSSL 3, TLS 1.3 only, and
+`TlsConnection` (`src/net/tls_transport.cpp`) uses OpenSSL 3, TLS 1.3 only, and
 mutual authentication: `SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT`
 against the deployment CA, plus an exact check of the peer certificate's
 single common name against the expected role. It provides exact reads and
@@ -299,14 +304,30 @@ containing only its own MP-SPDZ key and its peer's certificate.
 ## Repository layout
 
 ```
-include/pps/     ring.hpp (domain), wire.hpp (framing), transport.hpp,
-                 tls_transport.hpp, secure_ops.hpp (LocalShare, SecureOps),
-                 search.hpp (search + CostPlanner), mpspdz_party.hpp, oracle.hpp
-src/             party_main.cpp (pp_party), client_main.cpp (pp_client),
-                 mpspdz_party.cpp (only MP-SPDZ TU), tls_transport.cpp, wire.cpp, util.cpp
-mpc/pp_ops.py    exported MP-SPDZ functions (leq, half)
+src/
+  common/        ring arithmetic and bounds, errors, deadlines, CSPRNG/hash/sharing,
+                 argument parsing, JSON output
+  protocol/      the algorithm, independent of any backend or network:
+                 secure_ops.hpp (LocalShare, SecureOps), search.hpp, cost_planner.hpp
+  net/           wire.* (framing), transport.hpp, tls_transport.*
+  backend/       mpspdz_party.* (SecureOps on MP-SPDZ; the only code that includes it)
+  party/         pp_party: main.cpp, party_server*.cpp (session phases), session.hpp,
+                 peer_channel.*, session_stats.*, watchdog.hpp
+  client/        pp_client: main.cpp, input_owner.cpp, coordinator.cpp,
+                 fault_injection.cpp (tests only), client_common.*
+mpc/pp_ops.py    exported MP-SPDZ functions (leq, fits_u32)
+cmake/           MpSpdz.cmake (locates and verifies the pinned backend)
 scripts/         build_mpspdz.sh, provision_test_pki.py, prepare_party_runtime.py, demo_local.sh
-tests/           unit tests, two-process preprocessing harness, process-level integration
+tests/
+  support/       CHECK macros, plaintext oracle, plaintext reference evaluator
+  unit/          no second party: encoding, wire validation, search logic
+  integration/   real processes: harness.py, test_processes.py, test_preprocessing.py,
+                 preprocessing_party.cpp
+docs/            architecture, threat model, benchmarks
 benchmarks/      run_benchmarks.py, results/
 third_party/     mp-spdz.lock, patches/, mp-spdz/ (checkout, not versioned)
 ```
+
+Dependencies point one way: `common` ← `protocol` and `net` ← `backend` ← `party`;
+`client` uses only `common` and `net`, so it cannot link the MPC backend, and
+`protocol` depends on neither the network nor MP-SPDZ.

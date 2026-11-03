@@ -2,11 +2,11 @@
 # End-to-end local demonstration with separate processes:
 #   two computation parties, one coordinator, one requester, three stations.
 #
-# Usage: scripts/demo_local.sh [build-dir]   (default: build-mpc)
+# Usage: scripts/demo_local.sh [build-dir]   (default: build)
 set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
-build="$(cd "${1:-$repo/build-mpc}" && pwd)"
+build="$(cd "${1:-$repo/build}" && pwd)"
 work="$(mktemp -d "${TMPDIR:-/tmp}/pps-demo.XXXXXX")"
 trap 'kill $(jobs -p) 2>/dev/null || true' EXIT
 

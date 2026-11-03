@@ -1,6 +1,6 @@
 """Process-level harness: two computation-party processes plus independently
 launched coordinator, requester and station processes, all talking over
-mutually authenticated TLS on localhost.
+mutually authenticated TLS, on localhost unless SeparateHostDeployment is used.
 
 Used by tests/integration/test_*.py and benchmarks/run_benchmarks.py.
 """
@@ -9,6 +9,7 @@ import json
 import os
 import pathlib
 import secrets
+import shutil
 import signal
 import socket
 import subprocess
@@ -33,7 +34,7 @@ class Paths:
 
 
 def add_path_arguments(parser):
-    parser.add_argument("--build-dir", default=str(REPO / "build-mpc"))
+    parser.add_argument("--build-dir", default=str(REPO / "build"))
     parser.add_argument("--source-dir", default=str(REPO))
     parser.add_argument("--mpspdz-dir", default=None)
 
@@ -239,6 +240,118 @@ class Deployment:
                   "extra": [self.collect(p) for p in extra_processes]}
         result["seconds"] = time.time() - started
         return result
+
+
+class SeparateHostDeployment(Deployment):
+    """One pp_party per host, started over ssh; clients run on this machine.
+
+    Every target holds only its own party's key material. Each host must
+    already have the same pp_party and bytecode build at `remote_build`.
+    Nothing here changes network settings.
+
+    A target of "local" runs that party on this machine instead of over ssh,
+    which only exercises the plumbing: it is not a separate-host deployment.
+    """
+
+    def __init__(self, paths, work, pki, targets, addresses, remote_dirs, remote_builds, port_base):
+        self.paths = paths
+        self.work = pathlib.Path(work)
+        self.work.mkdir(parents=True, exist_ok=True)
+        self.pki = pathlib.Path(pki)
+        self.targets = targets
+        self.addresses = addresses
+        self.remote_dirs = remote_dirs
+        self.remote_builds = remote_builds
+        self.listen = [port_base, port_base + 1]
+        self.peer_port = port_base + 2
+        self.mpc_port_base = port_base + 3  # uses base+3 and base+4
+        self.party_args = []
+        self.processes = [None, None]
+        self.logs = [self.work / "party0.log", self.work / "party1.log"]
+        self.stats = [self.work / "party0-stats.jsonl", self.work / "party1-stats.jsonl"]
+
+    def endpoint(self, party):
+        return f"{self.addresses[party]}:{self.listen[party]}"
+
+    def _shell(self, party, command):
+        prefix = ["sh", "-c"] if self.targets[party] == "local" else \
+            ["ssh", "-o", "BatchMode=yes", self.targets[party]]
+        return prefix + [command]
+
+    def _copy_command(self, party, source, destination, pull=False):
+        target = self.targets[party]
+        remote = destination if target == "local" else f"{target}:{destination}"
+        if pull:
+            remote = source if target == "local" else f"{target}:{source}"
+            return ["rsync", "-a", remote, destination]
+        return ["rsync", "-a", "--delete", source, remote]
+
+    def party_command(self, party):
+        directory = self.remote_dirs[party]
+        return (f"cd {directory}/runtime && echo $$ > {directory}/party.pid && "
+                f"exec {self.remote_builds[party]}/pp_party --party-id {party} "
+                f"--listen {self.endpoint(party)} "
+                f"--peer {self.addresses[0]}:{self.peer_port} "
+                f"--mpc-hosts {self.addresses[0]},{self.addresses[1]} "
+                f"--mpc-port-base {self.mpc_port_base} "
+                f"--pki {directory}/pki --runtime {directory}/runtime "
+                f"--stats {directory}/stats.jsonl 2> {directory}/party.log")
+
+    def install_commands(self, party):
+        """Commands that ship this party's own material, and no one else's."""
+        bundle = self.work / f"bundle-p{party}"
+        directory = self.remote_dirs[party]
+        return bundle, [self._shell(party, f"mkdir -p {directory}"),
+                        self._copy_command(party, f"{bundle}/", f"{directory}/")]
+
+    def install(self):
+        for party in (0, 1):
+            bundle, commands = self.install_commands(party)
+            prepare_runtime(self.paths, party, self.pki, bundle / "runtime")
+            programs = bundle / "runtime" / "Programs"
+            programs.unlink()
+            programs.symlink_to(f"{self.remote_builds[party]}/mpc/Programs", target_is_directory=True)
+            pki = bundle / "pki"
+            pki.mkdir(exist_ok=True)
+            for name in ("ca.pem", f"party{party}.pem", f"party{party}.key"):
+                shutil.copy2(self.pki / name, pki / name)
+            for command in commands:
+                subprocess.run(command, check=True)
+        return self
+
+    def start(self, timeout=90):
+        for party in (0, 1):
+            directory = self.remote_dirs[party]
+            subprocess.run(self._shell(party, f"rm -f {directory}/stats.jsonl {directory}/party.log"),
+                           check=True)
+            self.processes[party] = subprocess.Popen(
+                self._shell(party, self.party_command(party)), stdout=subprocess.PIPE, text=True)
+        deadline = time.time() + timeout
+        for party in (0, 1):
+            line = ""
+            while time.time() < deadline and not line and self.processes[party].poll() is None:
+                line = self.processes[party].stdout.readline()
+            event = json.loads(line) if line.startswith("{") else None
+            if not event or event.get("event") != "ready":
+                self.stop()
+                raise RuntimeError(f"party {party} on {self.targets[party]} failed to start")
+        return self
+
+    def stop(self):
+        for party in (0, 1):
+            if self.processes[party] is None:
+                continue
+            directory = self.remote_dirs[party]
+            subprocess.run(self._shell(party, f"kill $(cat {directory}/party.pid) 2>/dev/null; true"),
+                           check=False)
+            try:
+                self.processes[party].wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self.processes[party].kill()
+                self.processes[party].wait()
+            for name, local in (("stats.jsonl", self.stats[party]), ("party.log", self.logs[party])):
+                subprocess.run(self._copy_command(party, f"{directory}/{name}", str(local), pull=True),
+                               check=False)
 
 
 def run_parallel(functions):

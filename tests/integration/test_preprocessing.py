@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Runs tests/test_preprocessing.cpp as two separate processes (party 0 and 1),
+"""Runs preprocessing_party.cpp as two separate processes (party 0 and 1),
 each in its own runtime directory with only its own MP-SPDZ key."""
 
 import argparse

@@ -10,8 +10,11 @@
 * The computation parties **do not collude**. If both are corrupted, or both
   parties' state is exposed, every input can be reconstructed.
 * Input owners (requester, stations) and the coordinator are authenticated
-  principals. Privacy is protected against them. For correctness they are
-  assumed to follow the protocol (see the limitations).
+  principals. They never see shares or intermediate values held by the parties.
+  An input owner that deviates can only choose its own inputs: the parties
+  exclude any input outside its domain (see the limitations). Nothing checks
+  that an in-domain input is true, so selection is only as reliable as the
+  stations' claims.
 
 This implementation makes **no** claim of:
 
@@ -58,11 +61,11 @@ pseudonymous requester certificates.
 | No match | no coordinates to anyone | `NoOutput` to every station. |
 
 Intermediate values stay secret-shared: distances `q_i`, eligibility bits,
-comparison bits, binary-search bounds, existence bits and candidate masks. The
+comparison bits and intermediate tournament winners. The
 only values ever opened are:
 
 1. the masked differences inside MP-SPDZ's Beaver multiplication and inside
-   MP-SPDZ's comparison and truncation sub-protocols, which are uniformly
+   MP-SPDZ's comparison sub-protocol, which are uniformly
    masked by fresh correlated randomness;
 2. the authorised `(match, match·id)`.
 
@@ -105,12 +108,19 @@ The outputs themselves reveal information, and this is by design:
   output shares. `semi2k` has no MACs, so such deviations are not detected.
 * **No collusion resistance.** The two parties together reconstruct
   everything.
-* **Input validation.** Owners check their own ranges before sharing, but the
-  parties cannot check secret-shared inputs. A malicious station could submit
-  out-of-range values, such as a coordinate outside the signed 32-bit domain.
-  That breaks the comparison bounds and can let it win or disrupt the
-  selection. A range proof or in-MPC range check would be needed against
-  malicious input owners.
+* **Input domains are enforced, input truth is not.** Parties cannot read
+  secret-shared inputs, and comparisons only read their operands' low bits. A
+  coordinate outside the signed 32-bit domain could wrap a distance into looking
+  small, win the selection and receive the requester's exact location, so each
+  session checks every input inside the MPC, over all 128 ring bits, with no opening. A
+  station with an out-of-domain input is never eligible, and an out-of-domain
+  requester input gives no match. Nobody learns which input failed.
+* **False in-domain station inputs remain possible.** A dishonest station with a
+  valid certificate can still claim any location and radius inside the domains.
+  If that claim is eligible and nearest to the requester, it is selected and
+  receives the requester's coordinates; `D` still limits how far away a claim
+  can be. Preventing this needs authenticated station locations, for example
+  attested by a registry, and is not implemented.
 * **Coordinator trust for availability and scope.** The coordinator chooses
   `D` and the station set, and any authenticated participant can cause an
   abort (denial of service).
@@ -133,11 +143,15 @@ The process-level tests
 * functional correctness against a plaintext oracle;
 * that no output share reaches a non-selected station;
 * rejection of malformed, duplicate and unauthorised input;
+* that a station submitting out-of-domain inputs through a client without range
+  checks receives no coordinates and does not change the honest selection, and
+  that the range check is exact at its boundaries on the real backend;
 * timeouts, disconnects and aborts;
 * exact triple consumption and exhaustion;
-* that both parties' executed operation counts equal the public plan for
-  `(N, D)`, and are identical across sessions with the same `(N, D)` but
-  different inputs (the unit tests additionally compare the full sequence of
+* that both parties' executed operation counts equal the public plan for `N`
+  (`M = 13N − 3`, `C = 3N − 1`, `K = 3N + 2`), and that fresh-process sessions with the same
+  `N` but different eligibility patterns and horizons have identical operation
+  counts and backend traffic (the unit tests additionally compare the full sequence of
   interactive operations and batch sizes against an all-zero input);
 * the absence of a distinctive requester coordinate from party logs.
 
