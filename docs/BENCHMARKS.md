@@ -41,7 +41,7 @@ fixed `N`.
 
 ## Recorded run
 
-`benchmarks/results/2026-11-02-range-check-loopback/`:
+`benchmarks/results/2026-11-02-range-check-loopback/`, with the local checkout path in `environment.json` and `final-ctest.log` replaced by `<repository>` for publication:
 
 | | |
 |---|---|
@@ -52,7 +52,7 @@ fixed `N`.
 | `source.diff` | uncommitted changes to tracked files when the run started; apply to the recorded `git_head` |
 | `source-snapshot.tar.gz` | the source the binaries were built from, because the reorganized source files are untracked and `source.diff` does not contain them |
 | `final-ctest.log` | the test run after the benchmark |
-| `work/` | raw party logs, per-session statistics, client outputs, station inputs, test PKI |
+| `work/` | raw party logs, per-session statistics, client outputs, station inputs, test PKI; kept on the measuring machine and not in the repository, because it holds private keys |
 
 | | |
 |---|---|

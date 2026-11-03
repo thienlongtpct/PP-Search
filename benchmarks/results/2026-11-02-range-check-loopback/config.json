@@ -1,0 +1,1143 @@
+{
+ "command": [
+  "benchmarks/run_benchmarks.py",
+  "--build-dir",
+  "build",
+  "--out",
+  "benchmarks/results/2026-11-02-range-check-loopback",
+  "--repetitions",
+  "10",
+  "--station-counts",
+  "1,4,16,64,256,1024",
+  "--horizons",
+  "100,10000,1000000,4294967295",
+  "--fixed-stations",
+  "64",
+  "--fixed-horizon",
+  "10000"
+ ],
+ "repetitions": 10,
+ "configurations": [
+  [
+   "stations",
+   1,
+   10000,
+   "uniform"
+  ],
+  [
+   "stations",
+   4,
+   10000,
+   "uniform"
+  ],
+  [
+   "stations",
+   16,
+   10000,
+   "uniform"
+  ],
+  [
+   "stations",
+   64,
+   10000,
+   "uniform"
+  ],
+  [
+   "stations",
+   256,
+   10000,
+   "uniform"
+  ],
+  [
+   "stations",
+   1024,
+   10000,
+   "uniform"
+  ],
+  [
+   "horizon",
+   64,
+   100,
+   "uniform"
+  ],
+  [
+   "horizon",
+   64,
+   10000,
+   "uniform"
+  ],
+  [
+   "horizon",
+   64,
+   1000000,
+   "uniform"
+  ],
+  [
+   "horizon",
+   64,
+   4294967295,
+   "uniform"
+  ],
+  [
+   "distribution",
+   64,
+   10000,
+   "uniform"
+  ],
+  [
+   "distribution",
+   64,
+   10000,
+   "clustered"
+  ],
+  [
+   "distribution",
+   64,
+   10000,
+   "beyond-horizon"
+  ]
+ ],
+ "seed_scheme": "random.Random(f'{sweep}-{n}-{horizon}-{distribution}-{repetition}'), public benchmark placement only; shares use the CSPRNG",
+ "runs": [
+  {
+   "seed": "stations-1-10000-uniform-0",
+   "requester": [
+    980,
+    764
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-0.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-1",
+   "requester": [
+    259,
+    -560
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-1.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-2",
+   "requester": [
+    -501,
+    -77
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-2.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-3",
+   "requester": [
+    235,
+    196
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-3.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-4",
+   "requester": [
+    -241,
+    897
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-4.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-5",
+   "requester": [
+    -401,
+    -445
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-5.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-6",
+   "requester": [
+    594,
+    -579
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-6.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-7",
+   "requester": [
+    -870,
+    -238
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-7.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-8",
+   "requester": [
+    857,
+    -977
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-8.csv"
+  },
+  {
+   "seed": "stations-1-10000-uniform-9",
+   "requester": [
+    -63,
+    710
+   ],
+   "stations_file": "work/stations-stations-1-10000-uniform-9.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-0",
+   "requester": [
+    -237,
+    953
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-0.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-1",
+   "requester": [
+    -620,
+    724
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-1.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-2",
+   "requester": [
+    988,
+    -646
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-2.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-3",
+   "requester": [
+    -856,
+    -407
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-3.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-4",
+   "requester": [
+    -173,
+    380
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-4.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-5",
+   "requester": [
+    -738,
+    533
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-5.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-6",
+   "requester": [
+    -451,
+    -986
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-6.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-7",
+   "requester": [
+    664,
+    -397
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-7.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-8",
+   "requester": [
+    -316,
+    -522
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-8.csv"
+  },
+  {
+   "seed": "stations-4-10000-uniform-9",
+   "requester": [
+    28,
+    391
+   ],
+   "stations_file": "work/stations-stations-4-10000-uniform-9.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-0",
+   "requester": [
+    775,
+    -230
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-0.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-1",
+   "requester": [
+    -678,
+    459
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-1.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-2",
+   "requester": [
+    107,
+    887
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-2.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-3",
+   "requester": [
+    841,
+    -362
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-3.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-4",
+   "requester": [
+    -559,
+    314
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-4.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-5",
+   "requester": [
+    -162,
+    404
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-5.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-6",
+   "requester": [
+    49,
+    -147
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-6.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-7",
+   "requester": [
+    -668,
+    -84
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-7.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-8",
+   "requester": [
+    -755,
+    374
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-8.csv"
+  },
+  {
+   "seed": "stations-16-10000-uniform-9",
+   "requester": [
+    326,
+    200
+   ],
+   "stations_file": "work/stations-stations-16-10000-uniform-9.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-0",
+   "requester": [
+    -647,
+    -621
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-0.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-1",
+   "requester": [
+    870,
+    -691
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-1.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-2",
+   "requester": [
+    -833,
+    826
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-2.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-3",
+   "requester": [
+    156,
+    -110
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-3.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-4",
+   "requester": [
+    10,
+    -463
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-4.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-5",
+   "requester": [
+    598,
+    -508
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-5.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-6",
+   "requester": [
+    -92,
+    -433
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-6.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-7",
+   "requester": [
+    -714,
+    -241
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-7.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-8",
+   "requester": [
+    929,
+    -220
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-8.csv"
+  },
+  {
+   "seed": "stations-64-10000-uniform-9",
+   "requester": [
+    -71,
+    -509
+   ],
+   "stations_file": "work/stations-stations-64-10000-uniform-9.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-0",
+   "requester": [
+    -87,
+    -40
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-0.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-1",
+   "requester": [
+    -992,
+    -797
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-1.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-2",
+   "requester": [
+    -192,
+    -278
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-2.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-3",
+   "requester": [
+    -899,
+    836
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-3.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-4",
+   "requester": [
+    -250,
+    -70
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-4.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-5",
+   "requester": [
+    41,
+    -20
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-5.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-6",
+   "requester": [
+    333,
+    234
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-6.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-7",
+   "requester": [
+    750,
+    -500
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-7.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-8",
+   "requester": [
+    274,
+    167
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-8.csv"
+  },
+  {
+   "seed": "stations-256-10000-uniform-9",
+   "requester": [
+    -75,
+    -878
+   ],
+   "stations_file": "work/stations-stations-256-10000-uniform-9.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-0",
+   "requester": [
+    583,
+    -668
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-0.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-1",
+   "requester": [
+    -125,
+    305
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-1.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-2",
+   "requester": [
+    689,
+    616
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-2.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-3",
+   "requester": [
+    -207,
+    -840
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-3.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-4",
+   "requester": [
+    -135,
+    -340
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-4.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-5",
+   "requester": [
+    -512,
+    223
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-5.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-6",
+   "requester": [
+    360,
+    320
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-6.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-7",
+   "requester": [
+    -817,
+    -554
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-7.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-8",
+   "requester": [
+    -588,
+    833
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-8.csv"
+  },
+  {
+   "seed": "stations-1024-10000-uniform-9",
+   "requester": [
+    -771,
+    -137
+   ],
+   "stations_file": "work/stations-stations-1024-10000-uniform-9.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-0",
+   "requester": [
+    -100,
+    -636
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-0.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-1",
+   "requester": [
+    14,
+    -223
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-1.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-2",
+   "requester": [
+    -200,
+    -256
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-2.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-3",
+   "requester": [
+    304,
+    -302
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-3.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-4",
+   "requester": [
+    503,
+    -851
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-4.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-5",
+   "requester": [
+    -103,
+    791
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-5.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-6",
+   "requester": [
+    973,
+    -186
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-6.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-7",
+   "requester": [
+    -968,
+    749
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-7.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-8",
+   "requester": [
+    -155,
+    -120
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-8.csv"
+  },
+  {
+   "seed": "horizon-64-100-uniform-9",
+   "requester": [
+    -736,
+    968
+   ],
+   "stations_file": "work/stations-horizon-64-100-uniform-9.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-0",
+   "requester": [
+    -734,
+    192
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-0.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-1",
+   "requester": [
+    71,
+    -894
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-1.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-2",
+   "requester": [
+    -760,
+    149
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-2.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-3",
+   "requester": [
+    -993,
+    333
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-3.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-4",
+   "requester": [
+    712,
+    419
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-4.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-5",
+   "requester": [
+    -648,
+    -421
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-5.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-6",
+   "requester": [
+    361,
+    -75
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-6.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-7",
+   "requester": [
+    -561,
+    301
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-7.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-8",
+   "requester": [
+    116,
+    -460
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-8.csv"
+  },
+  {
+   "seed": "horizon-64-10000-uniform-9",
+   "requester": [
+    68,
+    115
+   ],
+   "stations_file": "work/stations-horizon-64-10000-uniform-9.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-0",
+   "requester": [
+    376,
+    717
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-0.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-1",
+   "requester": [
+    69,
+    230
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-1.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-2",
+   "requester": [
+    209,
+    -95
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-2.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-3",
+   "requester": [
+    63,
+    -41
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-3.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-4",
+   "requester": [
+    -128,
+    669
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-4.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-5",
+   "requester": [
+    65,
+    60
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-5.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-6",
+   "requester": [
+    328,
+    729
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-6.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-7",
+   "requester": [
+    981,
+    -449
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-7.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-8",
+   "requester": [
+    -753,
+    -312
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-8.csv"
+  },
+  {
+   "seed": "horizon-64-1000000-uniform-9",
+   "requester": [
+    -408,
+    -172
+   ],
+   "stations_file": "work/stations-horizon-64-1000000-uniform-9.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-0",
+   "requester": [
+    -712,
+    805
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-0.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-1",
+   "requester": [
+    -788,
+    474
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-1.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-2",
+   "requester": [
+    -774,
+    -61
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-2.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-3",
+   "requester": [
+    427,
+    358
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-3.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-4",
+   "requester": [
+    -337,
+    -385
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-4.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-5",
+   "requester": [
+    -722,
+    880
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-5.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-6",
+   "requester": [
+    -980,
+    -497
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-6.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-7",
+   "requester": [
+    -148,
+    -997
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-7.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-8",
+   "requester": [
+    -233,
+    -804
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-8.csv"
+  },
+  {
+   "seed": "horizon-64-4294967295-uniform-9",
+   "requester": [
+    751,
+    -687
+   ],
+   "stations_file": "work/stations-horizon-64-4294967295-uniform-9.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-0",
+   "requester": [
+    572,
+    -59
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-0.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-1",
+   "requester": [
+    163,
+    327
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-1.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-2",
+   "requester": [
+    868,
+    -707
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-2.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-3",
+   "requester": [
+    244,
+    370
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-3.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-4",
+   "requester": [
+    -782,
+    977
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-4.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-5",
+   "requester": [
+    -391,
+    -778
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-5.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-6",
+   "requester": [
+    651,
+    87
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-6.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-7",
+   "requester": [
+    -432,
+    -380
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-7.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-8",
+   "requester": [
+    -691,
+    -831
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-8.csv"
+  },
+  {
+   "seed": "distribution-64-10000-uniform-9",
+   "requester": [
+    472,
+    339
+   ],
+   "stations_file": "work/stations-distribution-64-10000-uniform-9.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-0",
+   "requester": [
+    73,
+    -264
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-0.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-1",
+   "requester": [
+    -402,
+    846
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-1.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-2",
+   "requester": [
+    -712,
+    -20
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-2.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-3",
+   "requester": [
+    -606,
+    883
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-3.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-4",
+   "requester": [
+    -249,
+    -514
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-4.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-5",
+   "requester": [
+    -77,
+    -764
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-5.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-6",
+   "requester": [
+    -774,
+    397
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-6.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-7",
+   "requester": [
+    -112,
+    -937
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-7.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-8",
+   "requester": [
+    -77,
+    -517
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-8.csv"
+  },
+  {
+   "seed": "distribution-64-10000-clustered-9",
+   "requester": [
+    -446,
+    58
+   ],
+   "stations_file": "work/stations-distribution-64-10000-clustered-9.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-0",
+   "requester": [
+    135,
+    -522
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-0.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-1",
+   "requester": [
+    472,
+    -381
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-1.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-2",
+   "requester": [
+    580,
+    284
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-2.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-3",
+   "requester": [
+    -953,
+    825
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-3.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-4",
+   "requester": [
+    -461,
+    197
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-4.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-5",
+   "requester": [
+    -8,
+    814
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-5.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-6",
+   "requester": [
+    -481,
+    -55
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-6.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-7",
+   "requester": [
+    137,
+    966
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-7.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-8",
+   "requester": [
+    -346,
+    461
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-8.csv"
+  },
+  {
+   "seed": "distribution-64-10000-beyond-horizon-9",
+   "requester": [
+    271,
+    500
+   ],
+   "stations_file": "work/stations-distribution-64-10000-beyond-horizon-9.csv"
+  }
+ ]
+}
